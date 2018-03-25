@@ -1,0 +1,90 @@
+<!DOCTYPE html> 
+<html lang="en-AU" class="subpage"> 
+
+<head>
+<meta charset="utf-8" />
+<title>JSON2HLG Converter</title>
+
+<script type="text/javascript">
+	function prepFile(content) {
+		var textFile = null,
+		makeTextFile = function (text) {
+			var data = new Blob([text], {type: 'text/plain'});
+
+			// If we are replacing a previously generated file we need to
+			// manually revoke the object URL to avoid memory leaks.
+			if (textFile !== null) {
+			  window.URL.revokeObjectURL(textFile);
+			}
+			textFile = window.URL.createObjectURL(data);
+			return textFile;
+		};
+
+		var create = document.getElementById('create');
+
+		create.addEventListener('click', function () {
+			var link = document.getElementById('downloadlink');
+			link.href = makeTextFile(content);
+			link.style.display = 'block';
+		}, false);
+	};
+	
+	function onFileLoad(elementId, event) {
+		document.getElementById(elementId).innerText = event.target.result;
+		var geoJSONObject = event.target.result;
+		var geoObject = JSON.parse(geoJSONObject);
+		var features = [];
+		features = geoObject.features;
+		var len = features[0].geometry.coordinates[0].length;
+
+		var content = "[HIGHLIGHTING]\r\n"+"zoom=10"+"\r\n";
+		if ((features[0].geometry.type) == "Polygon")
+		{
+			for (var i = 0; i < len-1; i++) {
+				content += "PointLon_"+i+"="+features[0].geometry.coordinates[0][i][0]+"\r\n";
+				content += "PointLat_"+i+"="+features[0].geometry.coordinates[0][i][1]+"\r\n";
+			}
+			prepFile(content);
+		}else
+			throw ("Le fichier ne contient pas des données de type Polygon.");
+	}
+
+	function onChooseFile(event, onLoadFileHandler) {
+		if (typeof window.FileReader !== 'function')
+			throw ("The file API isn't supported on this browser.");
+		let input = event.target;
+		if (!input)
+			throw ("The browser does not properly implement the event object");
+		if (!input.files)
+			throw ("This browser does not support the `files` property of the file input.");
+		if (!input.files[0])
+			return undefined;
+		let file = input.files[0];
+		let fr = new FileReader();
+		fr.onload = onLoadFileHandler;
+		fr.readAsText(file);
+		
+		var inputFileName = file.name.split('.')[0];
+		inputFileName += ".hlg";
+		var a = document.getElementById('downloadlink');
+		a.setAttribute("download", inputFileName);
+		//console.log(file.name.split('.')[1]); //extension display	
+	}
+
+</script>
+</head>
+
+<body>
+	<h1>Json2hlg Converter</h1>
+
+	<input name="monFichier" type="file" accept=".geojson,.json" onchange='onChooseFile(event, onFileLoad.bind(this, "contents"))'>
+	<br/><br/>
+	<textarea id="contents" rows="10" cols="50"></textarea>
+	<br/>
+	<p>
+		<button id="create" onclick="prepFile()">Créer .hlg</button>
+		<br/><br/>
+		<a download="info.txt" id="downloadlink" style="display: none">Download</a>
+	</p>
+</body> 
+</html> 
