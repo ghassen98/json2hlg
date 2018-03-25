@@ -6,47 +6,47 @@
 <title>JSON2HLG Converter</title>
 
 <script type="text/javascript">
-	function prepFile(content) {
-		var textFile = null,
-		makeTextFile = function (text) {
-			var data = new Blob([text], {type: 'text/plain'});
-
-			// If we are replacing a previously generated file we need to
-			// manually revoke the object URL to avoid memory leaks.
-			if (textFile !== null) {
-			  window.URL.revokeObjectURL(textFile);
-			}
-			textFile = window.URL.createObjectURL(data);
-			return textFile;
-		};
-
-		var create = document.getElementById('create');
-
-		create.addEventListener('click', function () {
-			var link = document.getElementById('downloadlink');
-			link.href = makeTextFile(content);
-			link.style.display = 'block';
-		}, false);
-	};
-	
-	function onFileLoad(elementId, event) {
-		document.getElementById(elementId).innerText = event.target.result;
-		var geoJSONObject = event.target.result;
+	var fileContent;
+	function generateFile() {
+		var geoJSONObject = fileContent;
 		var geoObject = JSON.parse(geoJSONObject);
 		var features = [];
 		features = geoObject.features;
-		var len = features[0].geometry.coordinates[0].length;
-
-		var content = "[HIGHLIGHTING]\r\n"+"zoom=10"+"\r\n";
-		if ((features[0].geometry.type) == "Polygon")
+		
+		if ((features[0].geometry.type) != "Polygon")
 		{
+			throw ("Le fichier ne contient pas des données de type Polygon.");
+		}else{
+			var content = "[HIGHLIGHTING]\r\n"+"zoom=10"+"\r\n";
+			var len = features[0].geometry.coordinates[0].length;
+			
 			for (var i = 0; i < len-1; i++) {
 				content += "PointLon_"+i+"="+features[0].geometry.coordinates[0][i][0]+"\r\n";
 				content += "PointLat_"+i+"="+features[0].geometry.coordinates[0][i][1]+"\r\n";
 			}
-			prepFile(content);
-		}else
-			throw ("Le fichier ne contient pas des données de type Polygon.");
+		
+			var textFile = null,
+			makeTextFile = function (text) {
+				var data = new Blob([text], {type: 'text/plain'});
+
+				// If we are replacing a previously generated file we need to
+				// manually revoke the object URL to avoid memory leaks.
+				if (textFile !== null) {
+				  window.URL.revokeObjectURL(textFile);
+				}
+				textFile = window.URL.createObjectURL(data);
+				return textFile;
+			};
+		}
+		var link = document.getElementById('downloadlink');
+		link.href = makeTextFile(content);
+		link.style.display = 'block';
+		link.style.width = "100px";
+	};
+	
+	function onFileLoad(elementId, event) {
+		fileContent = event.target.result;
+		document.getElementById(elementId).innerText = event.target.result;
 	}
 
 	function onChooseFile(event, onLoadFileHandler) {
@@ -60,6 +60,12 @@
 		if (!input.files[0])
 			return undefined;
 		let file = input.files[0];
+		if(file.size > 204800){
+		   alert("Fichier trop volumineux!\nSimplifiez la géometrie.");
+		   input.value = "";
+		   return;
+		};
+	
 		let fr = new FileReader();
 		fr.onload = onLoadFileHandler;
 		fr.readAsText(file);
@@ -70,19 +76,18 @@
 		a.setAttribute("download", inputFileName);
 		//console.log(file.name.split('.')[1]); //extension display	
 	}
-
 </script>
 </head>
 
 <body>
 	<h1>Json2hlg Converter</h1>
 
-	<input name="monFichier" type="file" accept=".geojson,.json" onchange='onChooseFile(event, onFileLoad.bind(this, "contents"))'>
+	<input id="inputFile" name="monFichier" type="file" accept=".geojson,.json" onchange='onChooseFile(event, onFileLoad.bind(this, "contents"))'>
 	<br/><br/>
 	<textarea id="contents" rows="10" cols="50"></textarea>
 	<br/>
 	<p>
-		<button id="create" onclick="prepFile()">Créer .hlg</button>
+		<button id="create" onclick='generateFile()'>Créer .hlg</button>
 		<br/><br/>
 		<a download="info.txt" id="downloadlink" style="display: none">Download</a>
 	</p>
